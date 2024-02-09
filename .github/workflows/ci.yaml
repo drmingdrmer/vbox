@@ -1,0 +1,111 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  schedule: [cron: "40 1 * * *"]
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - toolchain: "stable"
+            features: ""
+          - toolchain: "nightly"
+            features: ""
+
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2
+
+
+      - name: Setup | Toolchain
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: "${{ matrix.toolchain }}"
+          override: true
+
+
+      - name: Build | Release Mode
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --features "${{ matrix.features }}"
+
+
+  ut:
+    name: unittest
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - toolchain: "stable"
+          - toolchain: "nightly"
+
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2
+
+
+      - name: Setup | Toolchain
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: "${{ matrix.toolchain }}"
+          override: true
+          components: rustfmt, clippy
+
+
+      - name: Unit Tests, with and without defensive store
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+        env:
+          RUST_LOG: debug
+          RUST_BACKTRACE: full
+
+
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v2
+      #   if: failure()
+      #   with:
+      #     name: ut
+      #     path: |
+      #       openraft/_log/
+
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1.0.6
+        with:
+          components: rustfmt, clippy
+
+      - name: Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: clippy
+        shell: bash
+        run: |
+          cargo clippy --no-deps --workspace --all-targets                -- -D warnings
+
+
+      - name: Build-doc
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --all --no-deps
+
+
+
+

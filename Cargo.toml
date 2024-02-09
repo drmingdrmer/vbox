@@ -1,0 +1,16 @@
+[package]
+name = "vbox"
+version = "0.1.0"
+edition = "2021"
+readme = "README.md"
+authors = ["Zhang Yanpo <drdr.xp@gmail.com>"]
+publish = true
+categories = ["data-structures"]
+description = "type erased Box of trait object"
+documentation = "https://docs.rs/vbox"
+homepage = "https://github.com/drmingdrmer/vbox"
+keywords = ["box", "vtable", "type-erased"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/drmingdrmer/vbox"
+
+[dependencies]
