@@ -1,9 +1,12 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::pin::Pin;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use futures::future::BoxFuture;
+use futures::Future;
 use vbox::from_vbox;
 use vbox::into_vbox;
 use vbox::VBox;
@@ -112,4 +115,40 @@ fn test_drop() {
         let _p: Box<dyn Plus> = from_vbox!(dyn Plus, vb);
     }
     assert_eq!(2, drop_cnt.load(Ordering::Relaxed), "drop is called");
+}
+
+#[test]
+fn test_fn_returns_box_future() {
+    use futures::future::BoxFuture;
+    let v = || {
+        let fut: BoxFuture<'static, u64> = Box::pin(async { 3u64 });
+        fut
+    };
+
+    let vb: VBox = into_vbox!(dyn FnOnce() -> BoxFuture<'static, u64>, v);
+    let p: Box<dyn FnOnce() -> BoxFuture<'static, u64>> =
+        from_vbox!(dyn FnOnce() -> BoxFuture<'static, u64>, vb);
+
+    let fu = p();
+
+    let got = futures::executor::block_on(fu);
+    assert_eq!(3, got);
+}
+
+#[test]
+fn test_fn_return_vbox_future() {
+    let v = || {
+        let fut = Box::pin(async { 3u64 });
+        into_vbox!(dyn Future<Output = u64> + Unpin, fut)
+    };
+
+    let vb: VBox = into_vbox!(dyn FnOnce() -> VBox, v);
+    let p: Box<dyn FnOnce() -> VBox> = from_vbox!(dyn FnOnce() -> VBox, vb);
+
+    let got = p();
+    let fu: Box<dyn Future<Output = u64> + Unpin> =
+        from_vbox!(dyn Future<Output = u64> + Unpin, got);
+
+    let got = futures::executor::block_on(fu);
+    assert_eq!(3, got);
 }
